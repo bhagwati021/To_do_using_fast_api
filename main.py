@@ -1,32 +1,43 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-app = FastAPI()
+from typing import Optional
+
+app = FastAPI() #create an instance of FastAPI
 
 #the app instance is the main component of our fastapi application .it is used to configure the application
-#/ping is the path of the endpoint
+
+todos = []  #create an empty list to store todos , in memory db
 
 #the @app.get() decorator is used to define an endpoint
 
-class Custom(BaseModel):
-    name:str
-    age:int
+class Todo(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    completed: bool = False
 
-@app.get("/ping")
-async def root():
-    return {"message":"hello world !!"}
+@app.get("/todos")
+def det_todos():
+    return todos
 
-@app.get("/")
-async def root():
-    return {"message":"welcome !!"}
+@app.get("/todos/{todo_id}")
+def get_todos(todo_id: int):
+    for todo in todos:
+        if todo['id']== todo_id:
+            return todo
+    return {"error":"Todo not found"}
 
-@app.get("/blog/comments")
-async def read_blog_comments():
-    return {"comments":"no comments yet !!"}
+@app.post("/todos")
+def create_todo(todo: Todo):
+    todos.append(todo.dict()) #append to do to the list
+    return todos[-1]  #return the last todo
 
-@app.post("/blog/{blog_id}")
-async def read_blog(blog_id: int, request_body: Custom, q: str= None, name: str= ''):
-    print(request_body)
-    print(q,name)
-    return {"blog_id": blog_id}
+@app.delete("/todos/{todo_id}")
+def delete_todo(todo_id:int):
+    for todo in todos:
+        if todo['id']== todo_id:
+            todos.remove(todo)
+            return {"message":"todo deleted successfully"}
+    return {"error":"todo not found"}
 
 
