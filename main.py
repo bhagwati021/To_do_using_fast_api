@@ -1,32 +1,58 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from pydantic import BaseModel
-app = FastAPI()
+from typing import Optional, List
+from models import TodoModel
+from sqlalchemy.orm import Session
+from database import Sessionlocal, engine
+import os
 
-#the app instance is the main component of our fastapi application .it is used to configure the application
-#/ping is the path of the endpoint
+app = FastAPI() 
+#create an instance of FastAPI the app instance is the main component of our fastapi application .it is used to configure the application
+
+TodoModel.metadata.create_all(bind=engine) # create the table in the database
+
 
 #the @app.get() decorator is used to define an endpoint
 
-class Custom(BaseModel):
-    name:str
-    age:int
+class TodoBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    completed: bool = False
 
-@app.get("/ping")
-async def root():
-    return {"message":"hello world !!"}
+class TodoResponse(TodoBase):
+    id : int
 
-@app.get("/")
-async def root():
-    return {"message":"welcome !!"}
+    class Config:
+        orm_mode = True  # to set up the response object
 
-@app.get("/blog/comments")
-async def read_blog_comments():
-    return {"comments":"no comments yet !!"}
+def get_db():
+    db = Sessionlocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-@app.post("/blog/{blog_id}")
-async def read_blog(blog_id: int, request_body: Custom, q: str= None, name: str= ''):
-    print(request_body)
-    print(q,name)
-    return {"blog_id": blog_id}
+@app.get("/todos", response_model=List[TodoResponse])
+def get_todos(db: Session = Depends(get_db)):
+    todos = db.query(TodoModel).all()
+    return todos
 
+@app.get("/todos/{todo_id}", response_model=TodoResponse)
+def get_todos(todo_id: int, db: Session = Depends(get_db)):
+    todo = db.query(TodoModel).filter(TodoModel.id == todo_id).first()
+    return todo.first()
 
+@app.post("/todos", response_model=TodoResponse)
+def create_todo(todo: TodoBase, db: Session = Depends(get_db)):
+    db_todo = TodoModel(title=todo.title, description=todo.description, completes=todo.completed)
+    db.add(db_todo)
+    db.commit()
+    db.refresh(db_todo)
+    return db_todo
+
+@app.delete("/todos/{todo_id}", response_model=TodoResponse)
+def delete_todo(todo_id:int, db: Session = Depends(get_db)):
+    todo = db.query(TodoModel).filter(TodoModel.id == todo_id).first()
+    db.delete(todo)
+    db.commit()
+    return todo
