@@ -44,7 +44,7 @@ def get_todos(todo_id: int, db: Session = Depends(get_db)):
 
 @app.post("/todos", response_model=TodoResponse)
 def create_todo(todo: TodoBase, db: Session = Depends(get_db)):
-    db_todo = TodoModel(title=todo.title, description=todo.description, completedtodo.completed)
+    db_todo = TodoModel(title=todo.title, description=todo.description, completed=todo.completed)
     db.add(db_todo)
     db.commit()
     db.refresh(db_todo)
